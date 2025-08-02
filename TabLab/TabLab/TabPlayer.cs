@@ -5,6 +5,8 @@ namespace TabLab;
 
 public static class TabPlayer
 {
+    private static readonly char[] strings = ['e', 'D', 'G', 'B', 'A', 'E'];
+
     public static List<List<Note>> ParseTab(string tab)
     {
         var moments = new List<List<Note>>();
@@ -34,7 +36,11 @@ public static class TabPlayer
                     // A more advanced parser would handle multi-digit frets.
                     var fret = fretChar - '0';
                     var noteFrequency = (float)(openStringFrequencies[stringIndex] * Math.Pow(2, fret / 12.0));
-                    currentMomentNotes.Add(new Note(noteFrequency, 0.25f)); // Default duration
+                    currentMomentNotes.Add(new Note(
+                        strings[stringIndex],
+                        fret,
+                        noteFrequency,
+                        0.25f)); // Default duration
                 }
             }
 
@@ -50,7 +56,6 @@ public static class TabPlayer
     // Plays the list of moments using NAudio
     public static async Task PlayMoments(List<List<Note>> moments)
     {
-        // Use WaveOutEvent for audio playback
         using var waveOut = new WaveOutEvent();
         foreach (var moment in moments)
         {
@@ -85,18 +90,20 @@ public static class TabPlayer
             waveOut.Init(mixer);
             waveOut.Play();
 
-            Console.Write($"Playing {moment.Count} note(s)... ");
+            Console.Write($"Playing {moment.Count} note(s) {moment.AsString()}");
             // Wait for the notes in the current moment to finish playing
             await Task.Delay((int)(maxDuration * 1000));
-            Console.WriteLine("Done.");
+            Console.WriteLine(".");
 
             // Stop is needed to allow the next Init call
             waveOut.Stop();
         }
     }
 
+    private static string AsString(this List<Note> moment) => String.Join(',', moment.Select(n => n.ToString()));
+
     // Custom sample provider that applies an envelope (fade in/out) to prevent audio pops
-    private class EnvelopedNote : ISampleProvider
+    private sealed class EnvelopedNote : ISampleProvider
     {
         private readonly ISampleProvider source;
         private readonly int totalSamples;
@@ -107,12 +114,12 @@ public static class TabPlayer
         public EnvelopedNote(ISampleProvider source, float duration, float fadeInTime, float fadeOutTime)
         {
             this.source = source;
-            WaveFormat = source.WaveFormat;
+            this.WaveFormat = source.WaveFormat;
 
-            totalSamples = (int)(duration * WaveFormat.SampleRate);
-            fadeInSamples = (int)(fadeInTime * WaveFormat.SampleRate);
-            fadeOutSamples = (int)(fadeOutTime * WaveFormat.SampleRate);
-            samplePosition = 0;
+            this.totalSamples = (int)(duration * this.WaveFormat.SampleRate);
+            this.fadeInSamples = (int)(fadeInTime * this.WaveFormat.SampleRate);
+            this.fadeOutSamples = (int)(fadeOutTime * this.WaveFormat.SampleRate);
+            this.samplePosition = 0;
         }
 
         public WaveFormat WaveFormat { get; }
@@ -123,7 +130,7 @@ public static class TabPlayer
 
             for (var i = 0; i < count; i++)
             {
-                if (samplePosition >= totalSamples)
+                if (this.samplePosition >= this.totalSamples)
                 {
                     // End of note reached
                     break;
@@ -131,7 +138,7 @@ public static class TabPlayer
 
                 // Read one sample from the source
                 var sourceSample = new float[1];
-                var read = source.Read(sourceSample, 0, 1);
+                var read = this.source.Read(sourceSample, 0, 1);
                 if (read == 0)
                 {
                     break;
@@ -141,19 +148,19 @@ public static class TabPlayer
                 var envelope = 1.0f;
 
                 // Apply fade in
-                if (samplePosition < fadeInSamples)
+                if (this.samplePosition < this.fadeInSamples)
                 {
-                    envelope = (float)samplePosition / fadeInSamples;
+                    envelope = (float)this.samplePosition / this.fadeInSamples;
                 }
                 // Apply fade out
-                else if (samplePosition >= totalSamples - fadeOutSamples)
+                else if (this.samplePosition >= this.totalSamples - this.fadeOutSamples)
                 {
-                    var fadeOutPosition = samplePosition - (totalSamples - fadeOutSamples);
-                    envelope = 1.0f - (float)fadeOutPosition / fadeOutSamples;
+                    var fadeOutPosition = this.samplePosition - (this.totalSamples - this.fadeOutSamples);
+                    envelope = 1.0f - (float)fadeOutPosition / this.fadeOutSamples;
                 }
 
                 buffer[offset + i] = sample * envelope;
-                samplePosition++;
+                this.samplePosition++;
                 samplesRead++;
             }
 
