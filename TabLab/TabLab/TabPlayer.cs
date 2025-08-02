@@ -72,11 +72,14 @@ public static class TabPlayer
 
                 var oscillator = new SignalGenerator(mixer.WaveFormat.SampleRate, mixer.WaveFormat.Channels)
                 {
-                    Gain = 0.2, // Lower gain to prevent clipping when mixing
+                    Gain = 0.15, // Lower gain to prevent clipping when mixing
                     Frequency = note.Frequency,
                     Type = SignalGeneratorType.Sin
                 };
-                mixer.AddMixerInput(oscillator.Take(TimeSpan.FromSeconds(note.Duration)));
+
+                // Apply envelope to prevent pops and clicks
+                var envelopedNote = new EnvelopedNote(oscillator, note.Duration, 0.01f, 0.05f);
+                mixer.AddMixerInput(envelopedNote);
             }
 
             waveOut.Init(mixer);
@@ -89,6 +92,78 @@ public static class TabPlayer
 
             // Stop is needed to allow the next Init call
             waveOut.Stop();
+        }
+    }
+
+    // Custom sample provider that applies an envelope (fade in/out) to prevent audio pops
+    private class EnvelopedNote : ISampleProvider
+    {
+        private readonly ISampleProvider source;
+        private readonly float duration;
+        private readonly float fadeInTime;
+        private readonly float fadeOutTime;
+        private readonly int totalSamples;
+        private readonly int fadeInSamples;
+        private readonly int fadeOutSamples;
+        private int samplePosition;
+
+        public EnvelopedNote(ISampleProvider source, float duration, float fadeInTime, float fadeOutTime)
+        {
+            this.source = source;
+            this.duration = duration;
+            this.fadeInTime = fadeInTime;
+            this.fadeOutTime = fadeOutTime;
+            this.WaveFormat = source.WaveFormat;
+
+            this.totalSamples = (int)(duration * this.WaveFormat.SampleRate);
+            this.fadeInSamples = (int)(fadeInTime * this.WaveFormat.SampleRate);
+            this.fadeOutSamples = (int)(fadeOutTime * this.WaveFormat.SampleRate);
+            this.samplePosition = 0;
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            var samplesRead = 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                if (this.samplePosition >= this.totalSamples)
+                {
+                    // End of note reached
+                    break;
+                }
+
+                // Read one sample from the source
+                var sourceSample = new float[1];
+                var read = this.source.Read(sourceSample, 0, 1);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                var sample = sourceSample[0];
+                var envelope = 1.0f;
+
+                // Apply fade in
+                if (this.samplePosition < this.fadeInSamples)
+                {
+                    envelope = (float)this.samplePosition / this.fadeInSamples;
+                }
+                // Apply fade out
+                else if (this.samplePosition >= this.totalSamples - this.fadeOutSamples)
+                {
+                    var fadeOutPosition = this.samplePosition - (this.totalSamples - this.fadeOutSamples);
+                    envelope = 1.0f - (float)fadeOutPosition / this.fadeOutSamples;
+                }
+
+                buffer[offset + i] = sample * envelope;
+                this.samplePosition++;
+                samplesRead++;
+            }
+
+            return samplesRead;
         }
     }
 }
