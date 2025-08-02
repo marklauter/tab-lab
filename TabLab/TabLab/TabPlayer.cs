@@ -38,7 +38,7 @@ public static class TabPlayer
                 }
             }
 
-            if (currentMomentNotes.Any())
+            if (currentMomentNotes.Count != 0)
             {
                 moments.Add(currentMomentNotes);
             }
@@ -54,7 +54,7 @@ public static class TabPlayer
         using var waveOut = new WaveOutEvent();
         foreach (var moment in moments)
         {
-            if (!moment.Any())
+            if (moment.Count == 0)
             {
                 continue;
             }
