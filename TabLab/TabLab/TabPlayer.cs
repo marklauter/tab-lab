@@ -99,9 +99,6 @@ public static class TabPlayer
     private class EnvelopedNote : ISampleProvider
     {
         private readonly ISampleProvider source;
-        private readonly float duration;
-        private readonly float fadeInTime;
-        private readonly float fadeOutTime;
         private readonly int totalSamples;
         private readonly int fadeInSamples;
         private readonly int fadeOutSamples;
@@ -110,15 +107,12 @@ public static class TabPlayer
         public EnvelopedNote(ISampleProvider source, float duration, float fadeInTime, float fadeOutTime)
         {
             this.source = source;
-            this.duration = duration;
-            this.fadeInTime = fadeInTime;
-            this.fadeOutTime = fadeOutTime;
-            this.WaveFormat = source.WaveFormat;
+            WaveFormat = source.WaveFormat;
 
-            this.totalSamples = (int)(duration * this.WaveFormat.SampleRate);
-            this.fadeInSamples = (int)(fadeInTime * this.WaveFormat.SampleRate);
-            this.fadeOutSamples = (int)(fadeOutTime * this.WaveFormat.SampleRate);
-            this.samplePosition = 0;
+            totalSamples = (int)(duration * WaveFormat.SampleRate);
+            fadeInSamples = (int)(fadeInTime * WaveFormat.SampleRate);
+            fadeOutSamples = (int)(fadeOutTime * WaveFormat.SampleRate);
+            samplePosition = 0;
         }
 
         public WaveFormat WaveFormat { get; }
@@ -129,7 +123,7 @@ public static class TabPlayer
 
             for (var i = 0; i < count; i++)
             {
-                if (this.samplePosition >= this.totalSamples)
+                if (samplePosition >= totalSamples)
                 {
                     // End of note reached
                     break;
@@ -137,7 +131,7 @@ public static class TabPlayer
 
                 // Read one sample from the source
                 var sourceSample = new float[1];
-                var read = this.source.Read(sourceSample, 0, 1);
+                var read = source.Read(sourceSample, 0, 1);
                 if (read == 0)
                 {
                     break;
@@ -147,19 +141,19 @@ public static class TabPlayer
                 var envelope = 1.0f;
 
                 // Apply fade in
-                if (this.samplePosition < this.fadeInSamples)
+                if (samplePosition < fadeInSamples)
                 {
-                    envelope = (float)this.samplePosition / this.fadeInSamples;
+                    envelope = (float)samplePosition / fadeInSamples;
                 }
                 // Apply fade out
-                else if (this.samplePosition >= this.totalSamples - this.fadeOutSamples)
+                else if (samplePosition >= totalSamples - fadeOutSamples)
                 {
-                    var fadeOutPosition = this.samplePosition - (this.totalSamples - this.fadeOutSamples);
-                    envelope = 1.0f - (float)fadeOutPosition / this.fadeOutSamples;
+                    var fadeOutPosition = samplePosition - (totalSamples - fadeOutSamples);
+                    envelope = 1.0f - (float)fadeOutPosition / fadeOutSamples;
                 }
 
                 buffer[offset + i] = sample * envelope;
-                this.samplePosition++;
+                samplePosition++;
                 samplesRead++;
             }
 
