@@ -10,6 +10,9 @@ It's a tool for building and playing guitar tablature using a custom markdown la
 
 ## project dependencies and versions
 
+### packages
+ - NAudio
+
 ### language
  - dotnet 9
  - C# 13
