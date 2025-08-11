@@ -28,3 +28,22 @@ A|-5-5--7-5--3-2--------------
 E|-3-3--5-3-------------------
 ```
 
+### references
+
+- timing notation: https://discover.hubpages.com/entertainment/Guitar-tablature-Timing-and-note-durations
+- basic tabs: https://discover.hubpages.com/entertainment/guitar-tab-basics
+
+```
+| /   slide up
+| \   slide down
+| h   hammer-on
+| p   pull-off
+| ~   vibrato
+| +   harmonic
+| x   Mute note
+| b   Bend
+| pb  Pre-bend
+| br  Bend release
+| pbr Pre-bend release
+| brb Bend release bend
+```
